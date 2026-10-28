@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Binding Wire Label Studio</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1f2433;--mut:#6b7280;--line:#e3e5ea;--red:#f84464;--grn:#1ea83c;--gry:#d4d6dc;color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root{--bg:#14161c;--card:#1d2028;--ink:#eceef3;--mut:#9aa1af;--line:#2b2f3a;--gry:#3a3f4c}}
+*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,"Segoe UI",Roboto,sans-serif}
+.app{max-width:980px;margin:0 auto;padding:14px 14px 160px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+h1{font-size:20px;margin:0}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.mut{color:var(--mut);font-size:12px}.ok{color:var(--grn);font-size:13px}.warn{color:#e8a317;font-size:13px}
+details{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+summary{cursor:pointer;padding:14px 16px;font-weight:600;display:flex;gap:10px;align-items:center;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"▾";transition:transform .2s}
+details[open]>summary::after{transform:rotate(180deg)}
+summary small{font-weight:400;color:var(--mut);margin-left:auto;text-align:right}
+.in{padding:0 16px 16px}
+.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px}
+.fl{display:grid;gap:4px;font-size:12px;color:var(--mut)}
+input{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%}
+input[type=date]{width:auto}
+.btn{border:0;border-radius:10px;padding:11px 20px;font:inherit;font-weight:600;cursor:pointer;background:var(--red);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.o{background:transparent;color:var(--ink);border:1px solid var(--line);padding:8px 12px;font-weight:500}
+.ds{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px}
+.d{flex:0 0 auto;min-width:62px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 6px;text-align:center;cursor:pointer;font:inherit}
+.d b{display:block;font-size:18px}.d small{color:var(--mut)}
+.d.on{background:var(--red);border-color:var(--red);color:#fff}.d.on small{color:#ffe3e8}
+.lg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:12px 0}
+.lg i{display:inline-block;width:13px;height:13px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1.5px solid var(--grn)}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.t{border:1.5px solid var(--grn);background:transparent;color:var(--ink);border-radius:8px;padding:8px 4px;cursor:pointer;font:inherit;line-height:1.25}
+.t b{font-size:17px;display:block}.t small{font-size:10px;opacity:.75}
+.t:hover{background:rgba(30,168,60,.12)}
+.t.s{background:var(--grn);color:#fff}
+.t.p{border-color:var(--gry);background:var(--gry);color:var(--mut)}
+.t.p.s{background:#e8a317;border-color:#e8a317;color:#fff}
+#bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -4px 18px rgba(0,0,0,.14);z-index:9}
+#bar .w{max-width:980px;margin:auto;padding:10px 14px}
+#ls{max-height:0;overflow:hidden;transition:max-height .25s}
+#bar.x #ls{max-height:40vh;overflow:auto;margin-bottom:8px}
+.li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.li b{flex:1}
+.q{display:flex;align-items:center;gap:6px}
+.q button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:16px;cursor:pointer}
+.q input{width:62px;text-align:center;padding:5px}
+#toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20;max-width:90vw}
+.lb{border:.25mm dashed #888;padding:3mm 5mm;font-family:"Times New Roman",Georgia,serif;color:#000;background:#fff;display:flex;flex-direction:column;justify-content:center;gap:2.2mm;overflow:hidden;text-transform:uppercase;line-height:1.15}
+.lb .h{background:#0b1220;color:#fff;font-weight:700;font-size:7.5mm;text-align:center;padding:1.6mm 2mm}
+.lb p{margin:0;font-size:5.6mm}.lb p.sp{display:flex;justify-content:space-between}
+.pl{overflow:auto}.pl .lb{width:97mm;height:70mm;max-width:100%}
+.sheet{width:210mm;height:297mm;padding:var(--m,8mm);display:grid;grid-template-columns:repeat(var(--c),1fr);grid-template-rows:repeat(var(--r),1fr);background:#fff;break-after:page}
+.sheet:last-child{break-after:auto}
+#pv{overflow:auto;display:flex;flex-direction:column;gap:12px;background:#9994;padding:10px;border-radius:8px}
+#pv .sheet{zoom:.5;flex:none;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.sheet.nb .lb{border-color:transparent}
+a.btn{text-decoration:none;display:inline-block}
+#sheets{display:none}
+@page{size:A4;margin:0}
+@media print{body{background:#fff}.app,#bar,#toast{display:none!important}#sheets{display:block}}
+</style>
+</head>
+<body>
+<div class="app">
+ <header>
+  <h1>🏷️ Binding Wire Label Studio</h1>
+  <nav class="row"><span id="chip"></span><a class="btn o" href="batches.html">📋 Batches</a><a class="btn o" href="insights.html">📊 Insights</a></nav>
+ </header>
+
+ <details id="d1"><summary>① Label details <small id="s1"></small></summary><div class="in">
+  <div class="f">
+   <label class="fl">Product title<input id="title"></label>
+   <label class="fl">Size<input id="size"></label>
+   <label class="fl">Coil no<input id="coil"></label>
+   <label class="fl">Quality<input id="quality"></label>
+   <label class="fl">Weight<input id="weight"></label>
+  </div>
+  <div class="f">
+   <label class="fl">Labels across (columns)<input id="cols" type="number" min="1" max="6"></label>
+   <label class="fl">Labels down (rows)<input id="rows" type="number" min="1" max="12"></label>
+   <label class="fl">Sheet margin (mm)<input id="m" type="number" min="0" max="20"></label>
+   <label class="fl">Start at label no. (partly used sheet)<input id="st" type="number" min="1" value="1"></label>
+   <label class="fl">Cut border<input id="cb" type="checkbox" checked style="width:auto;justify-self:start"></label>
+  </div>
+  <div class="mut" style="margin:10px 0 6px">Live label (no zinc line, barcode or expiry date)</div>
+  <div class="pl" id="pl"></div>
+ </div></details>
+
+ <details id="d2" open><summary>② Pick batches <small id="s2"></small></summary><div class="in">
+  <div class="ds" id="ds"></div>
+  <div class="row"><input type="date" id="dp"><input id="fb" placeholder="Find batch e.g. J2286-05" style="max-width:210px"><button class="btn o" id="nf">＋ Next free batch</button></div>
+  <div class="lg"><span><i></i>Available</span><span><i style="background:var(--grn)"></i>Selected</span><span><i style="background:var(--gry);border-color:var(--gry)"></i>Printed (tap to reprint)</span></div>
+  <div class="g" id="g"></div>
+  <button class="btn o" id="mr" style="margin-top:12px"></button>
+ </div></details>
+
+ <details id="d3"><summary>③ Sheet preview <small id="s3"></small></summary><div class="in"><div id="pv"></div></div></details>
+</div>
+
+<div id="bar"><div class="w">
+ <div id="ls"></div>
+ <div class="row"><div id="sm"></div><div class="row"><button class="btn o" id="ex">Details ▴</button><button class="btn" id="pr">Print ▸</button></div></div>
+</div></div>
+<section id="sheets"></section>
+<div id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s),L='ABCDEFGHIJKL',B32='0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const pad=(n,l=2)=>String(n).padStart(l,'0'),iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LS={get:k=>{try{return localStorage.getItem(k)}catch{}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}}};
+const S0={title:'BINDING WIRE',size:'0.85 MM',coil:'1',quality:'OK',weight:'25 KG',cols:2,rows:4,m:8},K=Object.keys(S0);
+let DB={v:1,lastTs:0,spec:null,batches:{}},dir,hnd,date=iso(new Date()),big=false,pending=false,tt;
+const sel=new Map();
+
+/* ---- spec helpers ---- */
+const spec=()=>Object.fromEntries(K.map(k=>[k,$('#'+k).value]));
+const setSpec=s=>K.forEach(k=>$('#'+k).value=s[k]??S0[k]);
+const lab=()=>{const s=spec();return{title:s.title,size:s.size,coil:s.coil,quality:s.quality,weight:s.weight}};
+const cl=(id,d,lo,hi)=>Math.min(hi,Math.max(lo,+$('#'+id).value||d));
+const per=()=>cl('cols',2,1,6)*cl('rows',4,1,12);
+
+/* ---- batch number = lotnumbergenerator pattern WITHOUT expiry: month letter + 3rd year digit + DD + 4th year digit, + 2-digit serial ---- */
+const bno=(ds,n)=>{const[Y,M,D]=ds.split('-');return L[M-1]+Y[2]+D+Y[3]+'-'+pad(n)};
+const dec=no=>{const m=/^([A-L])(\d)(\d\d)(\d)-(\d\d)$/.exec(no);return m&&{date:`20${m[2]}${m[4]}-${pad(L.indexOf(m[1])+1)}-${m[3]}`,serial:+m[5]}};
+/* ---- time-ordered ULID-style id; timestamp never goes backwards (hybrid-logical-clock idea) ---- */
+function uid(){let t=Math.max(Date.now(),DB.lastTs+1),s='';DB.lastTs=t;for(let i=0;i<10;i++){s=B32[t%32]+s;t=Math.floor(t/32)}for(const b of crypto.getRandomValues(new Uint8Array(16)))s+=B32[b%32];return s}
+/* ---- consistency audit: key must decode to stored date+serial, uids unique ---- */
+function audit(){const u=new Set(),bad=[];for(const[k,b]of Object.entries(DB.batches)){const d=dec(k);if(!d||d.date!==b.date||d.serial!==b.serial||u.has(b.uid))bad.push(k);u.add(b.uid)}return bad}
+const tot=b=>b.prints.reduce((a,p)=>a+p.qty,0);
+
+/* ---- storage: everything lives in data/labels.sqlite, owned by the local server (server.js + sql.js) ---- */
+let online=false;
+const api=async(u,b)=>{const r=await fetch(u,b&&{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||('HTTP '+r.status));return j};
+const loadDay=async d=>{Object.assign(DB.batches,await api('/api/day?date='+d));online=true};
+const go=async d=>{date=d;try{await loadDay(d)}catch(e){online=false;toast('Server not reachable: '+e.message)}render()};
+const nlab=()=>[...sel.values()].reduce((a,s)=>a+s.qty,0),stp=()=>cl('st',1,1,per());
+function toast(m){const t=$('#toast');t.textContent=m;t.style.opacity=1;clearTimeout(tt);tt=setTimeout(()=>t.style.opacity=0,4000)}
+
+/* ---- label + sheets ---- */
+const snap=no=>DB.batches[no]?.spec||lab();
+const lbl=(no,s,seq=1)=>`<div class="lb"><div class="h">${esc(s.title)}</div><p>SIZE : <b>${esc(s.size)}</b></p><p class="sp"><span>COIL NO : <b>${esc(s.coil)}</b></span><span>QUALITY : <b>${esc(s.quality)}</b></span></p><p>WEIGHT : <b>${esc(s.weight)}</b></p><p>BATCH NO : <b>${no}-${seq}</b></p></div>`;
+function sheets(){const c=cl('cols',2,1,6),r=cl('rows',4,1,12),all=Array(stp()-1).fill('<div></div>');sel.forEach((s,no)=>{for(let i=0;i<s.qty;i++)all.push(lbl(no,snap(no),i+1))});let h='';for(let i=0;i<all.length;i+=c*r)h+=`<section class="sheet${$('#cb').checked?'':' nb'}" style="--c:${c};--r:${r};--m:${cl('m',8,0,20)}mm">${all.slice(i,i+c*r).join('')}</section>`;return h}
+
+/* ---- render ---- */
+function render(){
+ const sp=lab(),P=per(),N=big?48:24,bad=audit();
+ $('#chip').innerHTML=online?'<span class="ok">✅ SQLite · data/labels.sqlite</span>':'<span class="warn">⚠ Server offline — run start-windows.bat</span>';
+
+ $('#s1').textContent=`${sp.title} · ${sp.size} · ${sp.weight} · Coil ${sp.coil}`;
+ $('#pl').innerHTML=lbl(bno(date,1),sp);
+ const t0=new Date();
+ $('#ds').innerHTML=[-3,-2,-1,0,1,2,3].map(o=>{const x=new Date(t0.getFullYear(),t0.getMonth(),t0.getDate()+o),k=iso(x);return`<button class="d${k===date?' on':''}" data-d="${k}"><small>${x.toLocaleDateString('en-IN',{weekday:'short'})}</small><b>${x.getDate()}</b><small>${x.toLocaleDateString('en-IN',{month:'short'})}</small></button>`}).join('');
+ $('#dp').value=date;
+ $('#s2').textContent=`${date.split('-').reverse().join('-')} · lot code ${bno(date,1).slice(0,5)}`;
+ $('#g').innerHTML=Array.from({length:N},(_,j)=>{const i=j+1,no=bno(date,i),b=DB.batches[no];return`<button class="t${b?' p':''}${sel.has(no)?' s':''}" data-n="${no}" data-i="${i}" title="${no}"><b>${pad(i)}</b><small>${b?'✓ '+tot(b)+' printed · '+(b.labelCount||0)+' counted':no}</small></button>`}).join('');
+ $('#mr').textContent=big?'Show fewer ▴':'Show more batches ▾';
+ const n=sel.size,nl=nlab(),sh=Math.ceil((nl+stp()-1)/P);
+ $('#sm').innerHTML=n?`<b>${n} batch${n>1?'es':''}</b> · ${nl} labels · ${sh} sheet${sh>1?'s':''}`:'<span class="mut">Select a batch to continue</span>';
+ $('#pr').disabled=!n;
+ $('#ls').innerHTML=[...sel].map(([no,s])=>`<div class="li"><b>${no}${DB.batches[no]?' <small class="mut">↻ reprint</small>':''}</b><div class="q"><button data-a="-" data-n="${no}">−</button><input type="number" min="1" max="500" value="${s.qty}" data-n="${no}"><button data-a="+" data-n="${no}">+</button></div><button class="btn o" data-a="x" data-n="${no}">✕</button></div>`).join('');
+ const h=sheets();$('#sheets').innerHTML=h;$('#pv').innerHTML=h||'<span class="mut">Select a batch to preview the A4 sheet.</span>';$('#s3').textContent=n?`${sh} sheet${sh>1?'s':''}`:'';
+}
+
+/* ---- events ---- */
+$('#ds').onclick=e=>{const b=e.target.closest('[data-d]');if(b)go(b.dataset.d)};
+$('#dp').onchange=e=>{if(e.target.value)go(e.target.value)};
+$('#g').onclick=e=>{const b=e.target.closest('.t');if(!b)return;const no=b.dataset.n;sel.has(no)?sel.delete(no):sel.set(no,{date,serial:+b.dataset.i,qty:per()});render()};
+$('#mr').onclick=()=>{big=!big;render()};
+$('#nf').onclick=()=>{for(let i=1;i<=(big?48:24);i++){const no=bno(date,i);if(!DB.batches[no]&&!sel.has(no)){sel.set(no,{date,serial:i,qty:per()});return render()}}toast('No free batch among the tiles shown')};
+$('#ex').onclick=()=>$('#bar').classList.toggle('x');
+$('#ls').onclick=e=>{const b=e.target.closest('[data-a]');if(!b)return;const s=sel.get(b.dataset.n),a=b.dataset.a;if(a==='x')sel.delete(b.dataset.n);else if(s)s.qty=Math.min(500,Math.max(1,s.qty+(a==='+'?1:-1)));render()};
+$('#ls').onchange=e=>{const s=sel.get(e.target.dataset.n);if(s){s.qty=Math.min(500,Math.max(1,+e.target.value||1));render()}};
+document.querySelectorAll('.f input').forEach(i=>i.oninput=render);
+$('#fb').onchange=e=>{const no=e.target.value.trim().toUpperCase(),d=dec(no);e.target.value='';if(!d)return toast('Format like J2286-05: month letter, year digit, day, year digit, serial');sel.has(no)||sel.set(no,{date:d.date,serial:d.serial,qty:per()});go(d.date)};
+async function commit(){            // saved only after you confirm the sheets really printed
+ await api('/api/print',{items:[...sel].map(([,s])=>({date:s.date,serial:s.serial,qty:s.qty})),label:lab(),layout:spec(),start:stp()});
+ for(const d of new Set([...sel.values()].map(s=>s.date)))await loadDay(d)}
+const printTitle=()=>{const ids=[...sel.keys()],shown=ids.slice(0,3);return`Labels_${shown.join('_')}${ids.length>3?`_and_${ids.length-3}_more`:''}`};
+const appTitle=document.title;
+$('#pr').onclick=()=>{if(!sel.size)return;pending=true;setTimeout(()=>{document.title=printTitle();print()},100)};
+addEventListener('afterprint',async()=>{
+ document.title=appTitle;
+ if(!pending)return;pending=false;
+ if(!confirm(`Did the ${nlab()} labels print correctly?\n\nOK = save them as printed in the database.\nCancel = save nothing.`))return;
+ try{await commit();sel.clear();$('#st').value=1;toast('Saved to data/labels.sqlite')}catch(e){toast('Not saved: '+e.message)}
+ render()});
+
+/* ---- init ---- */
+(async()=>{
+ setSpec(S0);
+ try{const s=await api('/api/settings');if(s.layout)setSpec(s.layout);await loadDay(date)}catch(e){online=false}
+ const q=(new URLSearchParams(location.search).get('batch')||'').toUpperCase(),d=dec(q);
+ if(d){sel.set(q,{date:d.date,serial:d.serial,qty:per()});return go(d.date)}
+ render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Insights · Label Studio</title><link rel="stylesheet" href="app.css"></head>
+<body><div class="app">
+<header><h1>📊 Insights</h1><nav class="row"><a class="btn" href="index.html">🏷️ Print</a><a class="btn" href="batches.html">📋 Batches</a></nav></header>
+<div class="kps" id="k"></div>
+<div class="card"><b>Labels printed per day (last 30 days)</b><div id="ch"></div></div>
+<div class="card"><b>By product</b><table><thead><tr><th>Product</th><th>Batches</th><th>Labels</th></tr></thead><tbody id="pp"></tbody></table></div>
+<div class="card"><div class="row"><b>Google Drive off-site backups</b><button id="bk" class="pri">💾 Backup &amp; sync now</button></div><p class="mut" id="driveNote"></p><div id="driveAccounts"></div></div>
+<div class="card"><div class="row"><b>Restore a local or Drive backup</b><span><select id="restoreFile"></select><button id="restore" class="pri">Restore selected backup</button></span></div><p class="mut">The selected database is integrity-checked before restore. A separate pre-restore safety copy is kept locally.</p></div>
+<div class="card"><div class="row"><b>Database health</b><span><a class="btn" href="/api/download">⬇ Download .sqlite</a> <button id="rc">↻ Re-check</button></span></div><div id="hl"></div></div>
+</div><script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=async(u,post)=>{const r=await fetch(u,post&&{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(post===true?{}:post)});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||r.status);return j};
+async function load(){
+ try{
+  const[s,h,d]=await Promise.all([api('/api/stats'),api('/api/health'),api('/api/drive/status')]),t=s.totals;
+  const remote=await Promise.all(d.accounts.filter(a=>a.connected).map(async account=>{try{return{account,files:await api('/api/drive/backups?account='+account.slot)}}catch(e){return{account,error:e.message}}}));
+  $('#k').innerHTML=[['Batches',t.batches],['Labels printed',t.labels],['Printed today',t.today],['Print jobs',t.jobs],['Products',t.products],['Voided batches',t.voided]].map(([a,b])=>`<div class="kp"><b>${b}</b><span>${a}</span></div>`).join('');
+  const W=s.daily.length,max=Math.max(1,...s.daily.map(d=>d.n)),bw=Math.min(30,Math.floor(900/Math.max(W,1)));
+  $('#ch').innerHTML=W?`<svg viewBox="0 0 ${W*(bw+4)} 140" width="100%" height="170" role="img">${s.daily.map((d,i)=>{const hh=Math.max(2,Math.round(110*d.n/max)),x=i*(bw+4);return`<rect x="${x}" y="${118-hh}" width="${bw}" height="${hh}" rx="3" fill="#f84464"><title>${d.d}: ${d.n} labels (running total ${d.cum})</title></rect><text x="${x+bw/2}" y="134" font-size="9" text-anchor="middle" fill="currentColor">${d.d.slice(8)}</text>`}).join('')}</svg>`:'<p class="mut">No prints in the last 30 days.</p>';
+  $('#pp').innerHTML=s.products.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.batches}</td><td>${p.labels}</td></tr>`).join('')||'<tr><td colspan="3" class="mut">No products yet.</td></tr>';
+  const ok=h.integrity==='ok'&&!h.fkViolations;
+  $('#hl').innerHTML=`<table><tr><td>Integrity check</td><td>${ok?'✅ ok':'❌ '+esc(h.integrity)+' / '+h.fkViolations+' foreign-key problems'}</td></tr><tr><td>SQLite engine</td><td>${h.sqlite} (via sql.js)</td></tr><tr><td>Schema version</td><td>${h.schema}</td></tr><tr><td>File size</td><td>${(h.fileBytes/1024).toFixed(1)} KB (${h.pages} pages × ${h.pageSize} B)</td></tr><tr><td>Backups kept</td><td>${h.backups.length?h.backups.map(esc).join('<br>'):'none yet'}</td></tr></table>`;
+  const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'local time';
+  const loopback=['localhost','127.0.0.1','[::1]'].includes(location.hostname);
+  const canConnect=d.configured&&(!d.localCallback||loopback);
+  $('#driveNote').textContent=d.configured?`Daily backup at ${d.schedule} (${tz}). Connect two different Google accounts below. Folder: Binding Wire Label Studio / Backups / year / month.${d.localCallback&&!loopback?' Connect the accounts in a browser on the server computer at http://127.0.0.1:3001; LAN users can use the backups after connection.':''}`:'Configure GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET before connecting Google accounts.';
+  $('#driveAccounts').innerHTML=d.accounts.map(a=>`<div class="row" style="padding:8px 0;border-top:1px solid var(--line)"><span>Account ${a.slot}: ${a.connected?`✅ ${esc(a.email)}`:'Not connected'}${a.lastBackup?.file?` · last upload ${esc(a.lastBackup.file)}`:''}${a.lastError?` · <span class="mut">${esc(a.lastError)}</span>`:''}</span>${canConnect?`<a class="btn" href="/api/drive/connect?account=${a.slot}">${a.connected?'Reconnect':'Connect'}</a>`:''}</div>`).join('');
+  if(d.lastRun)$('#driveNote').textContent+=` Last sync: ${new Date(d.lastRun.at).toLocaleString()} (${d.lastRun.results.filter(x=>x.ok).length}/2 accounts succeeded).`;
+  const local=h.backups.filter(x=>x.endsWith('.sqlite'));
+  const localOptions=local.length?`<optgroup label="This computer">${local.map(x=>`<option value="local|${esc(x)}">${esc(x)}</option>`).join('')}</optgroup>`:'';
+  const driveOptions=remote.map(r=>`<optgroup label="Google Drive ${r.account.slot} · ${esc(r.account.email)}">${r.error?`<option value="" disabled>Could not list backups: ${esc(r.error)}</option>`:r.files.map(f=>`<option value="drive|${f.slot}|${esc(f.id)}">${esc(f.name)} · ${esc(f.modifiedTime||'')}</option>`).join('')||'<option value="" disabled>No backups found</option>'}</optgroup>`).join('');
+  $('#restoreFile').innerHTML=localOptions+driveOptions||'<option value="">No local or connected Drive backups</option>';
+  $('#restore').disabled=!local.length&&!remote.some(r=>r.files?.length);
+ }catch(e){$('#k').innerHTML=`<p class="mut">Server offline: ${esc(e.message)}</p>`}}
+$('#rc').onclick=load;$('#bk').onclick=async()=>{try{const r=await api('/api/backup',true);const results=r.drive.map(x=>`Account ${x.slot}: ${x.ok?`uploaded to ${x.email}`:x.error}`).join('\n');alert(`Local backup saved: ${r.file}\n${results}${r.warning?`\n${r.warning}`:''}`);load()}catch(e){alert(e.message)}};
+$('#restore').onclick=async()=>{const [source,...parts]=$('#restoreFile').value.split('|');if(!source)return;const payload=source==='local'?{file:parts.join('|')}:{driveAccount:+parts[0],driveId:parts[1]};if(!confirm(`Restore this ${source==='local'?'local':'Google Drive'} backup?\n\nThe app will verify it first and save the current database as a pre-restore backup.`))return;try{const r=await api('/api/restore',payload);alert(`Restored ${r.restoredFrom}.\nSafety copy: ${r.preRestoreBackup}`);load()}catch(e){alert(`Restore failed: ${e.message}`)}};
+load();
+</script></body></html>

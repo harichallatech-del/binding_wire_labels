@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Batches · Label Studio</title><link rel="stylesheet" href="app.css"></head>
+<body><div class="app">
+<header><h1>📋 Batches</h1><nav class="row"><a class="btn" href="index.html">🏷️ Print</a><a class="btn" href="insights.html">📊 Insights</a></nav></header>
+<div class="card f"><input id="q" placeholder="Search batch no, product, note…"><input id="from" type="date" title="From date"><input id="to" type="date" title="To date"><select id="pr"><option value="">All products</option></select><select id="st"><option value="">Any status</option><option>active</option><option>void</option></select><select id="lim"><option>10</option><option selected>20</option><option>50</option></select></div>
+<div class="card"><div style="overflow-x:auto"><table><thead><tr><th>Batch no</th><th>Date</th><th>Product</th><th>Labels</th><th>Last printed</th><th>Status</th></tr></thead><tbody id="tb"></tbody></table></div>
+<div class="row" style="margin-top:10px"><span class="mut" id="info"></span><span><button id="pv">◀ Prev</button> <button id="nx">Next ▶</button></span></div></div>
+</div><script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=async(u,o)=>{const r=await fetch(u,o&&{method:o.m,headers:{'Content-Type':'application/json'},body:JSON.stringify(o.b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||r.status);return j};
+const when=t=>t?new Date(t).toLocaleString('en-IN'):'—';
+let cur=[''],i=0,tm;                     // keyset pagination: remember the cursor each page started from, so Prev works without OFFSET
+async function load(){
+ const p=new URLSearchParams({q:$('#q').value,from:$('#from').value,to:$('#to').value,product:$('#pr').value,status:$('#st').value,limit:$('#lim').value,after:cur[i]||''});
+ try{
+  const r=await api('/api/batches?'+p);
+  $('#tb').innerHTML=r.rows.map(b=>`<tr class="r" data-id="${b.id}"><td><b>${b.batch_no}</b></td><td>${b.mfg_date}</td><td>${esc(b.title)} · ${esc(b.size)} · ${esc(b.weight)}</td><td>${b.labels} <span class="mut">(${b.jobs} print${b.jobs==1?'':'s'})</span></td><td class="mut">${when(b.last_printed)}</td><td><span class="tag ${b.status=='void'?'v':''}">${b.status}</span></td></tr>`).join('')||'<tr><td colspan="6" class="mut">No batches found. Print some from the Print page first.</td></tr>';
+  const a=i*(+$('#lim').value)+1;$('#info').textContent=r.rows.length?`Showing ${a}–${a+r.rows.length-1} of ${r.total}`:`0 of ${r.total}`;
+  cur[i+1]=r.next;$('#nx').disabled=!r.next;$('#pv').disabled=i==0;
+ }catch(e){$('#tb').innerHTML=`<tr><td colspan="6" class="mut">Server offline: ${esc(e.message)}</td></tr>`}}
+const reset=()=>{cur=[''];i=0;load()};
+$('#tb').onclick=async e=>{
+ const tr=e.target.closest('tr.r');if(!tr)return;
+ const nx=tr.nextElementSibling;if(nx&&nx.classList.contains('d')){nx.remove();return}
+ try{
+  const d=await api('/api/batches/'+tr.dataset.id),b=d.batch,v=b.status=='void',row=document.createElement('tr');row.className='d';
+  row.innerHTML=`<td colspan="6"><div class="row"><b>${b.batch_no}</b><span class="mut">uid ${b.uid} · version ${b.version}</span></div>
+  <p class="mut">Print log</p>${d.jobs.map(j=>`<div>${j.qty} labels from sheet position ${j.start_pos} · ${when(j.printed_at)}</div>`).join('')||'none'}
+  <p class="mut">Version history</p>${d.versions.map(x=>`<div>v${x.version}: ${x.status}${x.note?' — '+esc(x.note):''} <span class="mut">(replaced ${when(x.valid_to)})</span></div>`).join('')||'<div class="mut">Original version, never changed</div>'}
+  <div class="f" style="margin-top:10px"><input class="nt" placeholder="Note (optional)" value="${esc(b.note)}"><button class="pri rp" ${v?'disabled':''}>🏷️ Reprint</button><button class="vd">${v?'Restore batch':'Void batch'}</button></div></td>`;
+  tr.after(row);
+  row.querySelector('.rp').onclick=()=>location.href='index.html?batch='+b.batch_no;
+  row.querySelector('.vd').onclick=async()=>{try{await api('/api/batches/'+b.id,{m:'PATCH',b:{status:v?'active':'void',note:row.querySelector('.nt').value,version:b.version}});load()}catch(er){alert(er.message);load()}};
+ }catch(er){alert(er.message)}};
+['q','from','to','pr','st','lim'].forEach(id=>$('#'+id).oninput=()=>{clearTimeout(tm);tm=setTimeout(reset,250)});
+$('#nx').onclick=()=>{i++;load()};$('#pv').onclick=()=>{i--;load()};
+api('/api/products').then(r=>r.forEach(p=>$('#pr').add(new Option(`${p.title} · ${p.size} · ${p.weight}`,p.id)))).catch(()=>{});
+load();
+</script></body></html>

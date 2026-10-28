@@ -1,0 +1,1 @@
+{"name":"binding-wire-label-studio","version":"2.0.0","private":true,"description":"Label printing with a local SQLite (sql.js) database","scripts":{"start":"node server.js","test":"node --test"},"engines":{"node":">=18"},"dependencies":{"sql.js":"^1.12.0"}}
