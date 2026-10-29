@@ -51,9 +51,9 @@ input[type=date]{width:auto}
 .q button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:16px;cursor:pointer}
 .q input{width:62px;text-align:center;padding:5px}
 #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20;max-width:90vw}
-.lb{border:.25mm dashed #888;padding:3mm 5mm;font-family:"Times New Roman",Georgia,serif;color:#000;background:#fff;display:flex;flex-direction:column;justify-content:center;gap:2.2mm;overflow:hidden;text-transform:uppercase;line-height:1.15}
-.lb .h{background:#0b1220;color:#fff;font-weight:700;font-size:7.5mm;text-align:center;padding:1.6mm 2mm}
-.lb p{margin:0;font-size:5.6mm}.lb p.sp{display:flex;justify-content:space-between}
+.lb{border:.25mm solid #777;padding:1.5mm 3mm;font-family:"Times New Roman",Georgia,serif;color:#000;background:#fff;display:flex;flex-direction:column;justify-content:center;gap:.45mm;overflow:hidden;line-height:1.08}
+.lb .h{color:#000;font-weight:700;font-size:3.3mm;text-align:center;padding:0 0 .4mm}
+.lb p{margin:0;font-size:2.9mm}.lb p.sp{display:flex;justify-content:space-between}
 .pl{overflow:auto}.pl .lb{width:97mm;height:70mm;max-width:100%}
 .sheet{width:210mm;height:297mm;padding:var(--m,8mm);display:grid;grid-template-columns:repeat(var(--c),1fr);grid-template-rows:repeat(var(--r),1fr);background:#fff;break-after:page}
 .sheet:last-child{break-after:auto}
@@ -105,7 +105,7 @@ a.btn{text-decoration:none;display:inline-block}
 
 <div id="bar"><div class="w">
  <div id="ls"></div>
- <div class="row"><div id="sm"></div><div class="row"><button class="btn o" id="ex">Details ▴</button><button class="btn" id="pr">Print ▸</button></div></div>
+ <div class="row"><div id="sm"></div><div class="row"><button class="btn o" id="ex">Details ▴</button><button class="btn o" id="docx" title="Download the selected labels as an A4 Word document">A4 DOCX ▸</button><button class="btn" id="pr">Print ▸</button></div></div>
 </div></div>
 <section id="sheets"></section>
 <div id="toast"></div>
@@ -115,7 +115,7 @@ const $=s=>document.querySelector(s),L='ABCDEFGHIJKL',B32='0123456789ABCDEFGHJKM
 const pad=(n,l=2)=>String(n).padStart(l,'0'),iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const LS={get:k=>{try{return localStorage.getItem(k)}catch{}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}}};
-const S0={title:'BINDING WIRE',size:'0.85 MM',coil:'1',quality:'OK',weight:'25 KG',cols:2,rows:4,m:8},K=Object.keys(S0);
+const S0={title:'BINDING WIRE',size:'0.85mm',coil:'1',quality:'OK',weight:'25Kg',cols:3,rows:10,m:8},K=Object.keys(S0);
 let DB={v:1,lastTs:0,spec:null,batches:{}},dir,hnd,date=iso(new Date()),big=false,pending=false,tt;
 const sel=new Map();
 
@@ -124,7 +124,7 @@ const spec=()=>Object.fromEntries(K.map(k=>[k,$('#'+k).value]));
 const setSpec=s=>K.forEach(k=>$('#'+k).value=s[k]??S0[k]);
 const lab=()=>{const s=spec();return{title:s.title,size:s.size,coil:s.coil,quality:s.quality,weight:s.weight}};
 const cl=(id,d,lo,hi)=>Math.min(hi,Math.max(lo,+$('#'+id).value||d));
-const per=()=>cl('cols',2,1,6)*cl('rows',4,1,12);
+const per=()=>cl('cols',3,1,6)*cl('rows',4,1,12);
 
 /* ---- batch number = lotnumbergenerator pattern WITHOUT expiry: month letter + 3rd year digit + DD + 4th year digit, + 2-digit serial ---- */
 const bno=(ds,n)=>{const[Y,M,D]=ds.split('-');return L[M-1]+Y[2]+D+Y[3]+'-'+pad(n)};
@@ -145,8 +145,8 @@ function toast(m){const t=$('#toast');t.textContent=m;t.style.opacity=1;clearTim
 
 /* ---- label + sheets ---- */
 const snap=no=>DB.batches[no]?.spec||lab();
-const lbl=(no,s,seq=1)=>`<div class="lb"><div class="h">${esc(s.title)}</div><p>SIZE : <b>${esc(s.size)}</b></p><p class="sp"><span>COIL NO : <b>${esc(s.coil)}</b></span><span>QUALITY : <b>${esc(s.quality)}</b></span></p><p>WEIGHT : <b>${esc(s.weight)}</b></p><p>BATCH NO : <b>${no}-${seq}</b></p></div>`;
-function sheets(){const c=cl('cols',2,1,6),r=cl('rows',4,1,12),all=Array(stp()-1).fill('<div></div>');sel.forEach((s,no)=>{for(let i=0;i<s.qty;i++)all.push(lbl(no,snap(no),i+1))});let h='';for(let i=0;i<all.length;i+=c*r)h+=`<section class="sheet${$('#cb').checked?'':' nb'}" style="--c:${c};--r:${r};--m:${cl('m',8,0,20)}mm">${all.slice(i,i+c*r).join('')}</section>`;return h}
+const lbl=(no,s,seq=1)=>`<div class="lb"><div class="h">${esc(s.title)}</div><p class="sp"><span>SIZE ${esc(s.size)}</span><span>Coil : ${esc(s.coil)}</span></p><p>Weight : ${esc(s.weight)}</p><p>Quality : ${esc(s.quality)}</p><p>Batch No. ${no}-${seq}</p></div>`;
+function sheets(){const c=cl('cols',3,1,6),r=cl('rows',4,1,12),all=Array(stp()-1).fill('<div></div>');sel.forEach((s,no)=>{for(let i=0;i<s.qty;i++)all.push(lbl(no,snap(no),i+1))});let h='';for(let i=0;i<all.length;i+=c*r)h+=`<section class="sheet${$('#cb').checked?'':' nb'}" style="--c:${c};--r:${r};--m:${cl('m',8,0,20)}mm">${all.slice(i,i+c*r).join('')}</section>`;return h}
 
 /* ---- render ---- */
 function render(){
@@ -164,6 +164,7 @@ function render(){
  const n=sel.size,nl=nlab(),sh=Math.ceil((nl+stp()-1)/P);
  $('#sm').innerHTML=n?`<b>${n} batch${n>1?'es':''}</b> · ${nl} labels · ${sh} sheet${sh>1?'s':''}`:'<span class="mut">Select a batch to continue</span>';
  $('#pr').disabled=!n;
+ $('#docx').disabled=!n;
  $('#ls').innerHTML=[...sel].map(([no,s])=>`<div class="li"><b>${no}${DB.batches[no]?' <small class="mut">↻ reprint</small>':''}</b><div class="q"><button data-a="-" data-n="${no}">−</button><input type="number" min="1" max="500" value="${s.qty}" data-n="${no}"><button data-a="+" data-n="${no}">+</button></div><button class="btn o" data-a="x" data-n="${no}">✕</button></div>`).join('');
  const h=sheets();$('#sheets').innerHTML=h;$('#pv').innerHTML=h||'<span class="mut">Select a batch to preview the A4 sheet.</span>';$('#s3').textContent=n?`${sh} sheet${sh>1?'s':''}`:'';
 }
@@ -182,6 +183,23 @@ $('#fb').onchange=e=>{const no=e.target.value.trim().toUpperCase(),d=dec(no);e.t
 async function commit(){            // saved only after you confirm the sheets really printed
  await api('/api/print',{items:[...sel].map(([,s])=>({date:s.date,serial:s.serial,qty:s.qty})),label:lab(),layout:spec(),start:stp()});
  for(const d of new Set([...sel.values()].map(s=>s.date)))await loadDay(d)}
+$('#docx').onclick=async()=>{
+ if(!sel.size)return;
+ const button=$('#docx');
+ button.disabled=true;
+ try{
+  const response=await fetch('/api/docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   layout:{cols:cl('cols',3,1,6),rows:cl('rows',4,1,12),margin:cl('m',8,0,20),start:stp(),cutBorder:$('#cb').checked},
+   items:[...sel].map(([batchNo,s])=>({batchNo,qty:s.qty,label:snap(batchNo)}))
+  })});
+  if(!response.ok){const result=await response.json().catch(()=>({}));throw Error(result.error||`HTTP ${response.status}`)}
+  const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');
+  link.href=url;link.download=response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]||'Labels_A4.docx';
+  document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('Downloaded A4 DOCX');
+ }catch(e){toast('DOCX download failed: '+e.message)}
+ finally{button.disabled=!sel.size}
+};
 const printTitle=()=>{const ids=[...sel.keys()],shown=ids.slice(0,3);return`Labels_${shown.join('_')}${ids.length>3?`_and_${ids.length-3}_more`:''}`};
 const appTitle=document.title;
 $('#pr').onclick=()=>{if(!sel.size)return;pending=true;setTimeout(()=>{document.title=printTitle();print()},100)};

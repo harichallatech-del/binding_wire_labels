@@ -17,12 +17,13 @@ test('migrates lot counters and safely restores SQLite backups',async t=>{
   }
   fs.rmSync(temp,{recursive:true,force:true});
  });
- for(const file of['server.js','schema.sql','google-drive.js'])fs.copyFileSync(path.join(root,file),path.join(temp,file));
+ for(const file of['server.js','schema.sql','google-drive.js','label-docx.js'])fs.copyFileSync(path.join(root,file),path.join(temp,file));
  fs.cpSync(path.join(root,'public'),path.join(temp,'public'),{recursive:true});
  fs.mkdirSync(path.join(temp,'data','backups'),{recursive:true});
 
  const legacy=new SQL.Database();legacy.run('PRAGMA foreign_keys=ON');legacy.exec(fs.readFileSync(path.join(root,'schema.sql'),'utf8'));
  legacy.run("INSERT INTO product(title,size,weight,quality,coil) VALUES('Wire','1mm','1kg','A','C1')");
+ legacy.run("INSERT INTO setting(key,value) VALUES('layout','{\"cols\":\"2\",\"rows\":\"4\",\"m\":\"8\"}')");
  legacy.run("INSERT INTO batch(uid,mfg_date,serial,product_id,created_at,updated_at) VALUES('legacy-uid','2026-10-28',1,1,'2026-10-28T00:00:00.000Z','2026-10-28T00:00:00.000Z')");
  legacy.run("INSERT INTO print_job(batch_id,qty,start_pos,printed_at) VALUES(1,3,1,'2026-10-28T00:01:00.000Z')");
  legacy.exec(`DROP VIEW v_batch; DROP TRIGGER label_append_only_u; DROP TRIGGER label_append_only_d; DROP INDEX ix_label_batch; DROP TABLE batch_label;
@@ -45,9 +46,30 @@ test('migrates lot counters and safely restores SQLite backups',async t=>{
  }
  assert.ok(health,'test server should start');
  assert.equal(health.schema,2);
+ const settings=await(await fetch(`${base}/api/settings`)).json();
+ assert.equal(settings.layout.cols,'3','existing two-column default migrates to three columns');
+ assert.equal(settings.layout.rows,'10','default sheet uses ten compact rows');
+ const printPage=await(await fetch(`${base}/`)).text();
+ assert.match(printPage,/cols:3,rows:10/,'sheet preview and browser Print default to three columns and ten rows');
+ assert.match(printPage,/cols:cl\('cols',3/,'DOCX uses the same selected column count');
+ assert.match(printPage,/Batch No\./,'sheet label uses the reference batch-number style');
  const day=async()=>await(await fetch(`${base}/api/day?date=2026-10-28`)).json();
  const post=async(route,body)=>fetch(`${base}${route}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  assert.equal((await day())['J2286-01'].labelCount,3,'migration backfills the legacy label count');
+ const docxResponse=await post('/api/docx',{
+  layout:{cols:3,rows:4,margin:8,start:2,cutBorder:true},
+  items:[{batchNo:'J2286-01',qty:2,label:{title:'Wire',size:'1mm',coil:'C1',quality:'A',weight:'1kg'}}]
+ });
+ assert.equal(docxResponse.status,200,'A4 DOCX export succeeds');
+ assert.match(docxResponse.headers.get('content-type'),/^application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document/);
+ assert.match(docxResponse.headers.get('content-disposition'),/Labels_J2286-01\.docx/);
+ assert.deepEqual([...Buffer.from(await docxResponse.arrayBuffer()).subarray(0,4)],[0x50,0x4b,0x03,0x04],'download is a ZIP-based DOCX file');
+ assert.equal((await day())['J2286-01'].labelCount,3,'DOCX export does not register labels as printed');
+ const invalidDocx=await post('/api/docx',{
+  layout:{cols:2,rows:4,margin:8,start:9,cutBorder:true},
+  items:[{batchNo:'J2286-01',qty:1,label:{title:'Wire',size:'1mm',coil:'C1',quality:'A',weight:'1kg'}}]
+ });
+ assert.equal(invalidDocx.status,400,'invalid sheet start positions are rejected');
  const oldRestore=await post('/api/restore',{file:'labels-legacy-v1.sqlite'});
  assert.equal(oldRestore.status,200,'restore migrates a valid legacy backup before activation');
  assert.equal((await day())['J2286-01'].labelCount,3);

@@ -5,6 +5,7 @@
 // durability comes from atomic file replacement (write temp -> fsync -> rename) after every committed transaction.
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');
 const {createGoogleDrive}=require('./google-drive');
+const {createLabelDocx}=require('./label-docx');
 function loadEnvFile(file){
  if(!fs.existsSync(file))return;
  for(const line of fs.readFileSync(file,'utf8').split(/\r?\n/)){
@@ -91,6 +92,24 @@ function migrate(save=true){
   }catch(e){try{db.run('ROLLBACK')}catch{}throw e}
   if(save)persist();
  }
+}
+function migrateThreeColumnDefault(){
+ if(one("SELECT value FROM setting WHERE key='three_column_layout_migrated'"))return;
+ tx(()=>{
+  const previousDefault=one("SELECT value FROM setting WHERE key='three_column_default_migrated'");
+  const saved=one("SELECT value FROM setting WHERE key='layout'");
+  if(saved){
+   const layout=JSON.parse(saved.value);
+   if(Number(layout.cols)===2){
+    layout.cols='3';
+    if(Number(layout.rows)===4)layout.rows='10';
+   }else if(previousDefault&&Number(layout.cols)===3&&Number(layout.rows)===4){
+    layout.rows='10';
+   }
+   db.run("UPDATE setting SET value=? WHERE key='layout'",[JSON.stringify(layout)]);
+  }
+  db.run("INSERT INTO setting(key,value) VALUES('three_column_layout_migrated','1')");
+ });
 }
 const health=()=>({sqlite:one('SELECT sqlite_version() v').v,schema:one('PRAGMA user_version').user_version,
  integrity:all('PRAGMA integrity_check').map(r=>r.integrity_check).join(','),fkViolations:all('PRAGMA foreign_key_check').length,
@@ -240,6 +259,7 @@ async function route(req,body){
  const u=new URL(req.url,'http://x'),q=Object.fromEntries(u.searchParams),m=req.method,p=u.pathname;let r;
  if(m==='GET'&&p==='/api/day')return day(q.date);
  if(m==='GET'&&p==='/api/settings'){const s=one("SELECT value FROM setting WHERE key='layout'");return{layout:s?JSON.parse(s.value):null}}
+ if(m==='POST'&&p==='/api/docx')return createLabelDocx(body);
  if(m==='GET'&&p==='/api/drive/status')return{...DRIVE.status(),schedule:DRIVE_BACKUP_TIME,localCallback:DRIVE_LOCAL_CALLBACK};
  if(m==='GET'&&p==='/api/drive/backups'){const slot=Number(q.account);if(slot!==1&&slot!==2)throw err(400,'Drive account must be 1 or 2.');return DRIVE.listBackups(slot)}
  if(m==='POST'&&p==='/api/print')return print(body);
@@ -281,7 +301,13 @@ function serve(req,res){
   let s='';req.on('data',c=>{s+=c;if(s.length>1e6)req.destroy()});
   req.on('end',async()=>{try{
    if(req.method!=='GET'&&!/json/.test(req.headers['content-type']||''))throw err(415,'JSON only');
-   send(res,200,await route(req,s?JSON.parse(s):{}))}
+   const result=await route(req,s?JSON.parse(s):{});
+   if(req.method==='POST'&&p==='/api/docx'){
+    const shown=result.batchNos.slice(0,3),filename=`Labels_${shown.join('_')}${result.batchNos.length>3?`_and_${result.batchNos.length-3}_more`:''}.docx`;
+    const mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    return send(res,200,result.buffer,mime,{'Content-Type':mime,'Content-Disposition':`attachment; filename="${filename}"`});
+   }
+   send(res,200,result)}
   catch(e){send(res,e.code>=400&&e.code<600?e.code:/constraint|void|immutable|never deleted|append-only/i.test(e.message)?409:500,{error:e.message})}})
  }catch(e){send(res,e.code>=400&&e.code<600?e.code:500,{error:e.message})}}
 
@@ -299,7 +325,7 @@ function scheduleDriveBackup(){
 }
 
 (async()=>{
- SQL=await require('sql.js')();open();migrate();
+ SQL=await require('sql.js')();open();migrate();migrateThreeColumnDefault();
  const h=health();if(h.integrity!=='ok'||h.fkViolations){console.error('DATABASE PROBLEM - not starting:',h);process.exit(1)}
  http.createServer(serve).listen(PORT,HOST,()=>{console.log(`\n  Label Studio is running ->  http://127.0.0.1:${PORT}\n  Database: ${F}  (SQLite ${h.sqlite}, schema v${h.schema})\n  Daily Google Drive backup: ${DRIVE_BACKUP_TIME} local time.\n  Press Ctrl+C to stop.\n`);scheduleDriveBackup()});
 })().catch(e=>{console.error(e);process.exit(1)});

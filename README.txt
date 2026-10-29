@@ -7,7 +7,7 @@ START
   3. Your browser opens http://127.0.0.1:3001
 
 PAGES
-  Print     pick a date, tap batch tiles, Print. The browser's suggested PDF/document name includes the selected lot IDs. After the print dialog you confirm "printed OK" - only then is it saved.
+  Print     pick a date and tap batch tiles. The A4 DOCX, sheet preview, and browser Print share the same layout, defaulting to 3 columns by 10 compact rows. Labels have a plain centered title, size and coil on one line, then weight, quality, and batch number. DOCX downloads do not change print status; browser printing is saved only after you confirm "printed OK".
   Batches   search / filter / page through every batch; open a row for its print log and version history; reprint, void or restore.
   Insights  totals, last-30-day chart, per-product table, database health, backup, restore and download of the .sqlite file.
 
